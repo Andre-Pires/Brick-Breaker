@@ -3,22 +3,22 @@ using System.Collections;
 
 public class BallMovement : MonoBehaviour {
 
-	float maxSpeed = 70f;
+	public float speed = 70f;
+
 	// Use this for initialization
 	void Start () {
-		rigidbody.AddForce(new Vector2(0, 100));
 	}
 
 	void Update() {
 
-		if(maxSpeed < rigidbody.velocity.x){
-			rigidbody.velocity.Set(maxSpeed, rigidbody.velocity.y, rigidbody.velocity.z);
+		if(speed < rigidbody.velocity.x){
+			rigidbody.velocity.Set(speed, rigidbody.velocity.y, rigidbody.velocity.z);
 		}
-		else if(maxSpeed < rigidbody.velocity.y){
-			rigidbody.velocity.Set(rigidbody.velocity.x, maxSpeed, rigidbody.velocity.z);
+		else if(speed < rigidbody.velocity.y){
+			rigidbody.velocity.Set(rigidbody.velocity.x, speed, rigidbody.velocity.z);
 		}
-		else if(maxSpeed < rigidbody.velocity.z){
-			rigidbody.velocity.Set(rigidbody.velocity.x, rigidbody.velocity.y, maxSpeed);
+		else if(speed < rigidbody.velocity.z){
+			rigidbody.velocity.Set(rigidbody.velocity.x, rigidbody.velocity.y, speed);
 		}
 	}
 
