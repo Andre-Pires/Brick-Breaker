@@ -1,10 +1,12 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class GameMaster : MonoBehaviour {
 
-	public static int score = 0;
-	public static int lives = 5;
+	public static int initLives = 5;
+	private static int lives = initLives;
+	private static int score = 0;
 	public static int leftBrickLimit = -23;
 	public static int rightBrickLimit = 23;
 	public static int brickIntervalHoriz = 3;
@@ -22,11 +24,15 @@ public class GameMaster : MonoBehaviour {
 	private bool gameReset = true;
 	private bool gameOver = false;
 
-	public KeyCode startGame = KeyCode.F;
+	public static int maxPlayers = 2;
+	public KeyCode startKey = KeyCode.F;
+	public KeyCode resetKey = KeyCode.R;
+	public KeyCode playerKey = KeyCode.Return;
 	public GameObject brick;
 	public GameObject ball;
 	public GameObject player;
-	public PlayerMovement playerMovement;
+	private IList<GameObject> players = new List<GameObject>();
+	private IList<PlayerMovement> playerMovement = new List<PlayerMovement>();
 
 	// Use this for initialization
 	void Start () {
@@ -43,13 +49,24 @@ public class GameMaster : MonoBehaviour {
 		ball = Instantiate(ball, new Vector3(ballStartX, ballStartY, 0), Quaternion.identity) as GameObject;
 
 		// player initialization
-		player = Instantiate(player, new Vector3(playerStartX, playerStartY, 0), Quaternion.identity) as GameObject;
-		playerMovement = player.GetComponent<PlayerMovement>();
+		players.Add(Instantiate(player, new Vector3(playerStartX, playerStartY, 0), Quaternion.identity) as GameObject);
+		playerMovement.Add(players[players.Count -1].GetComponent<PlayerMovement>());
 	}
 	
 	// Update is called once per frame
 	void Update () {
 
+		//In case you want to reset the game to the  initial state
+		if(Input.GetKey(resetKey)){
+			GameReset();
+		}
+
+		//In case new player joins
+		if(Input.GetKey(playerKey)){
+			AddPlayer();
+		}
+
+		// When you lost a life
 		if(ball.rigidbody.position.y < ballLowerLimit){
 			BallReset();
 			PlayerReset();
@@ -62,11 +79,16 @@ public class GameMaster : MonoBehaviour {
 			}
 		}
 
-
-		if(Input.GetKey(startGame) && gameReset){
+		// When you're about to start playing
+		if(Input.GetKey(startKey) && gameReset){
 			gameReset = false;
-			playerMovement.SetCanMove(true);
 			ball.rigidbody.AddForce(transform.up * 50);
+
+			foreach(PlayerMovement pMovement in  playerMovement){
+				if(pMovement != null){
+					pMovement.SetCanMove(true);
+				}
+			}
 		}
 	}
 
@@ -80,11 +102,14 @@ public class GameMaster : MonoBehaviour {
 			GUI.Label(new Rect (Screen.width - 100,10,150,20), "Lives: " + lives, fontStyle);
 
 			if(!gameOver && gameReset)
-				GUI.Label(new Rect (Screen.width/2 - 60, Screen.height/2 + 40, 150,20), "Press the " + startGame + " Key to start", fontStyle);
+				GUI.Label(new Rect (Screen.width/2 - 60, Screen.height/2 + 40, 150,20), "Press the \"" + startKey + "\" Key " +
+					"to start", fontStyle);
 
 		}else{
 			GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2, 150,20), "Game Over", fontStyle);
-			GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 40, 150,20), "Your score was: " + score, fontStyle);
+			GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 30, 150,20), "Your score was: " + score, fontStyle);
+			GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 60, 150,20), "Press the \"" + resetKey + "\" Key " +
+				"to play again.", fontStyle);
 		}
 	}
 	
@@ -100,9 +125,42 @@ public class GameMaster : MonoBehaviour {
 	}
 
 	public void PlayerReset(){
-		player.transform.position = new Vector3(playerStartX, playerStartY , 0);
-		player.rigidbody.velocity = Vector3.zero;
-		player.rigidbody.angularVelocity = Vector3.zero;
-		playerMovement.SetCanMove(false);
+
+		int playerOffset = 0;
+
+		if(gameOver){
+			players.Clear();
+			playerMovement.Clear();
+			players.Add(Instantiate(player, new Vector3(playerStartX, playerStartY, 0), Quaternion.identity) as GameObject);
+			playerMovement.Add(players[players.Count -1].GetComponent<PlayerMovement>());
+		}else {
+			foreach(GameObject player in players){
+				if(player != null){
+					player.transform.position = new Vector3(playerStartX + playerOffset, playerStartY , 0);
+					player.rigidbody.velocity = Vector3.zero;
+					player.rigidbody.angularVelocity = Vector3.zero;
+					player.GetComponent<PlayerMovement>().SetCanMove(false);
+				}
+				playerOffset += 10;
+			}
+		}
+	}
+
+	public void AddPlayer(){
+		// player initialization
+		if(players.Count < maxPlayers){
+			players.Add(Instantiate(player, new Vector3(playerStartX + 10, playerStartY, 0),
+			                        Quaternion.identity) as GameObject);
+			playerMovement.Add(players[players.Count -1].GetComponent<PlayerMovement>());
+		}
+	}
+
+	public void GameReset(){
+		gameReset = true;
+		gameOver = false;
+		score = 0;
+		lives = initLives;
+		BallReset();
+		PlayerReset();
 	}
 }
