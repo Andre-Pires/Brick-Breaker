@@ -16,7 +16,7 @@ public class GameMaster : MonoBehaviour {
 	public static int brickIntervalVert = 1;
 
 	public static int playerStartX = 0;
-	public static int playerStartY = 2;
+	public static int playerStartY = 4;
 
 	public static int ballStartX = playerStartX;
 	public static int ballStartY = playerStartY + 2;
@@ -82,7 +82,8 @@ public class GameMaster : MonoBehaviour {
 		// When you're about to start playing
 		if(Input.GetKey(startKey) && gameReset){
 			gameReset = false;
-			ball.rigidbody.AddForce(transform.up * 50);
+			ball.rigidbody.AddForce(transform.up * 2);
+			ball.GetComponent<BallMovement>().SetCanMove(true);
 
 			foreach(PlayerMovement pMovement in  playerMovement){
 				if(pMovement != null){
@@ -118,9 +119,10 @@ public class GameMaster : MonoBehaviour {
 	}
 
 	public void BallReset(){
-		ball.transform.position = new Vector3(ballStartX, ballStartY , 0);
+		ball.GetComponent<BallMovement>().SetCanMove(false);
 		ball.rigidbody.velocity = Vector3.zero;
 		ball.rigidbody.angularVelocity = Vector3.zero;
+		ball.transform.position = new Vector3(ballStartX, ballStartY , 0);
 		
 	}
 
