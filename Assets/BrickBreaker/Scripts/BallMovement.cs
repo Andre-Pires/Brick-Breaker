@@ -3,7 +3,7 @@ using System.Collections;
 
 public class BallMovement : MonoBehaviour {
 
-	public float speed = 13f;
+	public float speed = 6f;
 	public bool canMove = false;
 
 	// Use this for initialization
@@ -43,9 +43,10 @@ public class BallMovement : MonoBehaviour {
 			GameObject toDestroy = FindClosestBrick();
 			if(toDestroy != null){
 				Destroy(toDestroy);
+				GameMaster.IncreaseScore();
+				GameMaster.DestroyBrick();
 			}
-
-			GameMaster.IncreaseScore();
+			
 		}
 
 

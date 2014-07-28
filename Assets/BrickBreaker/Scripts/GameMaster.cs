@@ -8,7 +8,7 @@ public class GameMaster : MonoBehaviour {
 	private static int lives = initLives;
 	private static int score = 0;
 	public static int leftBrickLimit = -23;
-	public static int rightBrickLimit = 23;
+	public static int rightBrickLimit = 20;
 	public static int brickIntervalHoriz = 3;
 
 	public static int brickStartHeight = 16;
@@ -21,16 +21,18 @@ public class GameMaster : MonoBehaviour {
 	public static int ballStartX = playerStartX;
 	public static int ballStartY = playerStartY + 2;
 	public static float ballLowerLimit = 1.5f;
-	private bool gameReset = true;
-	private bool gameOver = false;
 
+	enum state {Victory, Defeat, LifeLost, Reset, NewPlayer, StartGame, Default}; 
+	private state currentState = state.Reset;
 	public static int maxPlayers = 2;
+	private static int bricksDestroyed = 0;
 	public KeyCode startKey = KeyCode.F;
 	public KeyCode resetKey = KeyCode.R;
 	public KeyCode playerKey = KeyCode.Return;
 	public GameObject brick;
 	public GameObject ball;
 	public GameObject player;
+	private IList<GameObject> bricks = new List<GameObject>();
 	private IList<GameObject> players = new List<GameObject>();
 	private IList<PlayerMovement> playerMovement = new List<PlayerMovement>();
 
@@ -42,8 +44,8 @@ public class GameMaster : MonoBehaviour {
 
 		for (int y = 0; y < brickLines; y += brickIntervalVert, height += brickIntervalVert) {
 			for (int x = leftBrickLimit; x < rightBrickLimit; x += brickIntervalHoriz) {
-				Instantiate(brick, new Vector3(x, height, 0), Quaternion.identity);
-				}
+				bricks.Add(Instantiate(brick, new Vector3(x, height, 0), Quaternion.identity) as GameObject);
+			}
 		}
 		// ball initialization
 		ball = Instantiate(ball, new Vector3(ballStartX, ballStartY, 0), Quaternion.identity) as GameObject;
@@ -52,44 +54,101 @@ public class GameMaster : MonoBehaviour {
 		players.Add(Instantiate(player, new Vector3(playerStartX, playerStartY, 0), Quaternion.identity) as GameObject);
 		playerMovement.Add(players[players.Count -1].GetComponent<PlayerMovement>());
 	}
+
+	state Status(){
+
+		if(lives <= 0){
+			return state.Defeat;	
+		}
+
+		if(Input.GetKey(resetKey)){
+			return state.Reset;
+		}
+
+		if((bricks.Count == bricksDestroyed)){
+			return state.Victory;
+		}
+
+		// When you're about to start playing
+		if(Input.GetKey(startKey) && (currentState == state.Reset || currentState == state.LifeLost)){
+			return state.StartGame;
+		}
+
+		if(ball.rigidbody.position.y < ballLowerLimit){
+			return state.LifeLost;
+		}
+
+		if(Input.GetKey(playerKey)){
+			return state.NewPlayer;
+		}
+
+		
+		return state.Default;
+	}
 	
 	// Update is called once per frame
 	void Update () {
 
-		//In case you want to reset the game to the  initial state
-		if(Input.GetKey(resetKey)){
-			GameReset();
-		}
 
-		//In case new player joins
-		if(Input.GetKey(playerKey)){
-			AddPlayer();
-		}
-
-		// When you lost a life
-		if(ball.rigidbody.position.y < ballLowerLimit){
-			BallReset();
-			PlayerReset();
-			gameReset = true;
-			lives--;
-
-			if(lives <= 0){
-				gameReset = false;
-				gameOver = true;
-			}
-		}
-
-		// When you're about to start playing
-		if(Input.GetKey(startKey) && gameReset){
-			gameReset = false;
-			ball.rigidbody.AddForce(transform.up * 2);
-			ball.GetComponent<BallMovement>().SetCanMove(true);
-
-			foreach(PlayerMovement pMovement in  playerMovement){
-				if(pMovement != null){
-					pMovement.SetCanMove(true);
+		switch(Status ()){
+			//In case you win
+			case state.Victory:
+				if(currentState != state.Victory){
+					//Debug.Log(state.Victory);
+					GameReset();
+					currentState = state.Victory;
 				}
-			}
+				break;
+			//In case you want to reset the game to the  initial state
+			case state.Reset:
+				if(currentState != state.Reset){
+					//Debug.Log(state.Reset);
+					GameReset();
+					currentState = state.Reset;
+				}
+				break;
+			//When you lose
+			case state.Defeat:
+				if(currentState != state.Defeat){
+					//Debug.Log(state.Defeat);
+					GameReset();
+					currentState = state.Defeat;
+				}
+				break;
+			//In case new player joins
+			case state.NewPlayer:
+				if(currentState != state.NewPlayer){
+					//Debug.Log(state.NewPlayer);
+					AddPlayer();
+					currentState = state.NewPlayer;
+					}
+				break;
+			//In case new player joins
+			case state.LifeLost:
+				if(currentState != state.LifeLost){
+					//Debug.Log(state.LifeLost);
+					BallReset();
+					PlayerReset();
+					lives--;
+					currentState = state.LifeLost;
+					}
+				break;
+			case state.StartGame:
+				if(currentState != state.StartGame){
+					//Debug.Log(state.StartGame);
+					ball.rigidbody.AddForce(transform.up * 2);
+					ball.GetComponent<BallMovement>().SetCanMove(true);
+				
+					foreach(PlayerMovement pMovement in  playerMovement){
+						if(pMovement != null){
+							pMovement.SetCanMove(true);
+						}
+					}
+					currentState = state.StartGame;
+				}
+				break;
+			default:
+				break;//do nothing
 		}
 	}
 
@@ -98,24 +157,42 @@ public class GameMaster : MonoBehaviour {
 		fontStyle.fontSize = 20;
 		fontStyle.normal.textColor = Color.black;
 
-		if(!gameOver){
-			GUI.Label(new Rect (20,10,150,20), "Score: " + score, fontStyle);
-			GUI.Label(new Rect (Screen.width - 100,10,150,20), "Lives: " + lives, fontStyle);
+		GUI.Label(new Rect (20,10,150,20), "Score: " + score, fontStyle);
+		GUI.Label(new Rect (Screen.width - 100,10,150,20), "Lives: " + lives, fontStyle);
 
-			if(!gameOver && gameReset)
+		switch(currentState){
+			//In case you win
+			case state.Victory:
+				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2, 150,20), "You win!", fontStyle);
+				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 30, 150,20), "Your score was: " + score, fontStyle);
+				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 60, 150,20), "Press the \"" + startKey + "\" Key " +
+				          "to play again.", fontStyle);
+				break;
+
+			//In case you want to reset the game to the  initial state
+			case state.LifeLost:
+			case state.Reset:
 				GUI.Label(new Rect (Screen.width/2 - 60, Screen.height/2 + 40, 150,20), "Press the \"" + startKey + "\" Key " +
-					"to start", fontStyle);
-
-		}else{
-			GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2, 150,20), "Game Over", fontStyle);
-			GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 30, 150,20), "Your score was: " + score, fontStyle);
-			GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 60, 150,20), "Press the \"" + resetKey + "\" Key " +
-				"to play again.", fontStyle);
+				          "to start", fontStyle);
+				break;
+			//When you lose
+			case state.Defeat:
+				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2, 150,20), "Game Over", fontStyle);
+				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 30, 150,20), "Your score was: " + score, fontStyle);
+				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 60, 150,20), "Press the \"" + resetKey + "\" Key " +
+				          "to play again.", fontStyle);
+				break;
+			default:
+				break;//do nothing
 		}
 	}
 	
 	public static void IncreaseScore(){
 		score += 10;
+	}
+
+	public static void DestroyBrick(){
+		bricksDestroyed++;
 	}
 
 	public void BallReset(){
@@ -130,7 +207,10 @@ public class GameMaster : MonoBehaviour {
 
 		int playerOffset = 0;
 
-		if(gameOver){
+		if(currentState == state.Defeat){
+			foreach(GameObject p in players){
+				Destroy(p);
+			}
 			players.Clear();
 			playerMovement.Clear();
 			players.Add(Instantiate(player, new Vector3(playerStartX, playerStartY, 0), Quaternion.identity) as GameObject);
@@ -148,6 +228,21 @@ public class GameMaster : MonoBehaviour {
 		}
 	}
 
+	public void BricksReset(){
+		int height = brickStartHeight;
+
+		foreach(GameObject brick in bricks){
+			Destroy(brick);
+		}
+		bricks.Clear();
+		
+		for (int y = 0; y < brickLines; y += brickIntervalVert, height += brickIntervalVert) {
+			for (int x = leftBrickLimit; x < rightBrickLimit; x += brickIntervalHoriz) {
+				bricks.Add(Instantiate(brick, new Vector3(x, height, 0), Quaternion.identity) as GameObject);
+			}
+		}
+	}
+
 	public void AddPlayer(){
 		// player initialization
 		if(players.Count < maxPlayers){
@@ -158,11 +253,11 @@ public class GameMaster : MonoBehaviour {
 	}
 
 	public void GameReset(){
-		gameReset = true;
-		gameOver = false;
 		score = 0;
 		lives = initLives;
+		bricksDestroyed = 0;
 		BallReset();
 		PlayerReset();
+		BricksReset();
 	}
 }
