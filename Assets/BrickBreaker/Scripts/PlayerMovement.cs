@@ -1,33 +1,40 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System;
 
 
 public class PlayerMovement : MonoBehaviour {
 
 	public KeyCode moveLeft = KeyCode.LeftArrow;
 	public KeyCode moveRight = KeyCode.RightArrow;
-	public bool canMove = false;
+    public float currentPosY = 999;
+    public float currentPosX = 999;
+    public float previousPosX = 999;
 
-	public float speed = 30; 
-	public float leftPlayerLimit = -22; 
-	public float rightPlayerLimit = 21; 
+	public float speed = 30;
+    public float speedLimit = 30;
+    public float speedMultiplier = 1.7f;
 
-	public void SetCanMove(bool move){
-		canMove = move;
-	}
 	
 	// Update is called once per frame
 	void Update () {
-	 	
-		if(canMove){
-			if(Input.GetKey(moveLeft) && rigidbody.position.x > leftPlayerLimit){
-				rigidbody.velocity = new Vector3(speed * -1, 0, 0);
-			}
-			else if(Input.GetKey(moveRight) && rigidbody.position.x < rightPlayerLimit){
-				rigidbody.velocity = new Vector3(speed, 0, 0);
-			}else{
-				rigidbody.velocity = new Vector3(0, 0, 0);
-			}
-		}
+    /*
+        if(Math.Abs(speed) <= speedLimit)
+		    rigidbody.velocity = new Vector3(speed * speedMultiplier, 0, 0);
+        else
+            rigidbody.velocity = new Vector3(speedLimit * speedMultiplier, 0, 0);
+     */
 	}
+
+    public void SetPos(float x)
+    {
+        /*
+        previousPosX = currentPosX;
+        currentPosX = x;
+        speed = (currentPosX - previousPosX) / Time.deltaTime;
+         * */
+
+        rigidbody.position = new Vector3(x, 0, 0);
+
+    }
 }

@@ -4,11 +4,13 @@ using System.Collections.Generic;
 
 public class GameMaster : MonoBehaviour {
 
-	public static int initLives = 5;
-	private static int lives = initLives;
+
+    //initial variables to control game settings
 	private static int score = 0;
+	public static int initLives = 3;
+	private static int lives = initLives;
 	public static int leftBrickLimit = -23;
-	public static int rightBrickLimit = 20;
+	public static int rightBrickLimit = 23;
 	public static int brickIntervalHoriz = 3;
 
 	public static int brickStartHeight = 16;
@@ -20,21 +22,25 @@ public class GameMaster : MonoBehaviour {
 
 	public static int ballStartX = playerStartX;
 	public static int ballStartY = playerStartY + 2;
-	public static float ballLowerLimit = 1.5f;
+	public static float ballLowerLimit = -0.5f;
 
-	enum state {Victory, Defeat, LifeLost, Reset, NewPlayer, StartGame, Default}; 
-	private state currentState = state.Reset;
-	public static int maxPlayers = 2;
-	private static int bricksDestroyed = 0;
-	public KeyCode startKey = KeyCode.F;
 	public KeyCode resetKey = KeyCode.R;
 	public KeyCode playerKey = KeyCode.Return;
+
+    //------------------------------------------
+
+    // Game variables 
+    public float playerX = 0;
+    public float playerY = 999;
 	public GameObject brick;
 	public GameObject ball;
 	public GameObject player;
+	private enum state {Victory, Defeat, LifeLost, Reset, NewPlayer, StartGame, Default}; 
+	private state currentState = state.Reset;
+	private static int bricksDestroyed = 0;
+	public static int maxPlayers = 1;
 	private IList<GameObject> bricks = new List<GameObject>();
-	private IList<GameObject> players = new List<GameObject>();
-	private IList<PlayerMovement> playerMovement = new List<PlayerMovement>();
+	private Dictionary<string, GameObject> players = new Dictionary<string, GameObject>();
 
 	// Use this for initialization
 	void Start () {
@@ -49,101 +55,97 @@ public class GameMaster : MonoBehaviour {
 		}
 		// ball initialization
 		ball = Instantiate(ball, new Vector3(ballStartX, ballStartY, 0), Quaternion.identity) as GameObject;
-
-		// player initialization
-		players.Add(Instantiate(player, new Vector3(playerStartX, playerStartY, 0), Quaternion.identity) as GameObject);
-		playerMovement.Add(players[players.Count -1].GetComponent<PlayerMovement>());
 	}
 
-	state Status(){
+	private state Status(){
 
-		if(lives <= 0){
-			return state.Defeat;	
-		}
+        //applies when ball reaches lower threshold and it isn't the player's last life
+		if (ball.rigidbody.position.y < ballLowerLimit && lives != 0)
+        {
+            return state.LifeLost;
+        }
 
-		if(Input.GetKey(resetKey)){
-			return state.Reset;
-		}
+        if (lives <= 0)
+        {
+            return state.Defeat;
+        }
 
-		if((bricks.Count == bricksDestroyed)){
-			return state.Victory;
-		}
+        if (Input.GetKey(resetKey))
+        {
+            return state.Reset;
+        }
 
-		// When you're about to start playing
-		if(Input.GetKey(startKey) && (currentState == state.Reset || currentState == state.LifeLost)){
-			return state.StartGame;
-		}
-
-		if(ball.rigidbody.position.y < ballLowerLimit){
-			return state.LifeLost;
-		}
-
-		if(Input.GetKey(playerKey)){
-			return state.NewPlayer;
-		}
-
-		
-		return state.Default;
+        if (bricks.Count == bricksDestroyed)
+        {
+            return state.Victory;
+        }
+        
+        if (toStart() == state.StartGame  && !(currentState == state.Defeat || currentState == state.Victory))
+        {
+            return state.StartGame;
+        }
+        return currentState;
 	}
 	
 	// Update is called once per frame
 	void Update () {
 
-
-		switch(Status ()){
+        switch(Status ()){
 			//In case you win
 			case state.Victory:
 				if(currentState != state.Victory){
-					//Debug.Log(state.Victory);
-					GameReset();
-					currentState = state.Victory;
+                    Debug.Log(state.Victory);
+                    GameReset();
+                    currentState = state.Victory;
 				}
+                if (toStart() == state.StartGame)
+                {
+                    Debug.Log(state.StartGame);
+                    ball.rigidbody.AddForce(transform.up * 2);
+                    ball.GetComponent<BallMovement>().SetCanMove(true);
+                    currentState = state.StartGame;
+                }
 				break;
 			//In case you want to reset the game to the  initial state
 			case state.Reset:
 				if(currentState != state.Reset){
-					//Debug.Log(state.Reset);
+					Debug.Log(state.Reset);
 					GameReset();
 					currentState = state.Reset;
 				}
 				break;
+            //In case you want to reset the game to the  initial state
+            case state.LifeLost:
+                if (currentState != state.LifeLost)
+                {
+                    Debug.Log(state.LifeLost);
+                    BallReset();
+                    PlayerReset();
+                    lives--;
+                    currentState = state.LifeLost;
+                }
+                break;
 			//When you lose
 			case state.Defeat:
-				if(currentState != state.Defeat){
-					//Debug.Log(state.Defeat);
-					GameReset();
-					currentState = state.Defeat;
-				}
-				break;
-			//In case new player joins
-			case state.NewPlayer:
-				if(currentState != state.NewPlayer){
-					//Debug.Log(state.NewPlayer);
-					AddPlayer();
-					currentState = state.NewPlayer;
-					}
-				break;
-			//In case new player joins
-			case state.LifeLost:
-				if(currentState != state.LifeLost){
-					//Debug.Log(state.LifeLost);
-					BallReset();
-					PlayerReset();
-					lives--;
-					currentState = state.LifeLost;
-					}
+                if (currentState != state.Defeat)
+                {
+                    Debug.Log(state.Defeat);
+                    GameReset();
+                    currentState = state.Defeat;
+                }
+                if (toStart() == state.StartGame)
+                {
+                    Debug.Log(state.StartGame);
+                    ball.rigidbody.AddForce(transform.up * 2);
+                    ball.GetComponent<BallMovement>().SetCanMove(true);
+                    currentState = state.StartGame;
+                }
 				break;
 			case state.StartGame:
 				if(currentState != state.StartGame){
-					//Debug.Log(state.StartGame);
+					Debug.Log(state.StartGame);
 					ball.rigidbody.AddForce(transform.up * 2);
 					ball.GetComponent<BallMovement>().SetCanMove(true);
-				
-					foreach(PlayerMovement pMovement in  playerMovement){
-						if(pMovement != null){
-							pMovement.SetCanMove(true);
-						}
-					}
 					currentState = state.StartGame;
 				}
 				break;
@@ -165,22 +167,19 @@ public class GameMaster : MonoBehaviour {
 			case state.Victory:
 				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2, 150,20), "You win!", fontStyle);
 				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 30, 150,20), "Your score was: " + score, fontStyle);
-				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 60, 150,20), "Press the \"" + startKey + "\" Key " +
-				          "to play again.", fontStyle);
+				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 60, 150,20), "Go up to the keep playing.", fontStyle);
 				break;
 
 			//In case you want to reset the game to the  initial state
 			case state.LifeLost:
 			case state.Reset:
-				GUI.Label(new Rect (Screen.width/2 - 60, Screen.height/2 + 40, 150,20), "Press the \"" + startKey + "\" Key " +
-				          "to start", fontStyle);
+				GUI.Label(new Rect (Screen.width/2 - 60, Screen.height/2 + 40, 150,20), "Go up to the ball to start", fontStyle);
 				break;
 			//When you lose
 			case state.Defeat:
 				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2, 150,20), "Game Over", fontStyle);
 				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 30, 150,20), "Your score was: " + score, fontStyle);
-				GUI.Label(new Rect (Screen.width/2 - 30, Screen.height/2 + 60, 150,20), "Press the \"" + resetKey + "\" Key " +
-				          "to play again.", fontStyle);
+                GUI.Label(new Rect(Screen.width / 2 - 30, Screen.height / 2 + 60, 150, 20), "Go up to the ball to play again.", fontStyle);
 				break;
 			default:
 				break;//do nothing
@@ -195,6 +194,14 @@ public class GameMaster : MonoBehaviour {
 		bricksDestroyed++;
 	}
 
+    private state toStart(){
+
+        if (playerY < 15 && players.Count > 0)
+            return state.StartGame;
+        else
+            return state.Default;
+    }
+
 	public void BallReset(){
 		ball.GetComponent<BallMovement>().SetCanMove(false);
 		ball.rigidbody.velocity = Vector3.zero;
@@ -203,30 +210,11 @@ public class GameMaster : MonoBehaviour {
 		
 	}
 
-	public void PlayerReset(){
+    public void PlayerReset()
+    {
+        playerY = 999;
 
-		int playerOffset = 0;
-
-		if(currentState == state.Defeat){
-			foreach(GameObject p in players){
-				Destroy(p);
-			}
-			players.Clear();
-			playerMovement.Clear();
-			players.Add(Instantiate(player, new Vector3(playerStartX, playerStartY, 0), Quaternion.identity) as GameObject);
-			playerMovement.Add(players[players.Count -1].GetComponent<PlayerMovement>());
-		}else {
-			foreach(GameObject player in players){
-				if(player != null){
-					player.transform.position = new Vector3(playerStartX + playerOffset, playerStartY , 0);
-					player.rigidbody.velocity = Vector3.zero;
-					player.rigidbody.angularVelocity = Vector3.zero;
-					player.GetComponent<PlayerMovement>().SetCanMove(false);
-				}
-				playerOffset += 10;
-			}
-		}
-	}
+    }
 
 	public void BricksReset(){
 		int height = brickStartHeight;
@@ -243,21 +231,58 @@ public class GameMaster : MonoBehaviour {
 		}
 	}
 
-	public void AddPlayer(){
+	public void AddPlayer(string id, float x){
 		// player initialization
 		if(players.Count < maxPlayers){
-			players.Add(Instantiate(player, new Vector3(playerStartX + 10, playerStartY, 0),
-			                        Quaternion.identity) as GameObject);
-			playerMovement.Add(players[players.Count -1].GetComponent<PlayerMovement>());
+			Vector3 pos = new Vector3(x, playerStartY, 0);
+			players.Add(id ,Instantiate(player, pos,Quaternion.identity) as GameObject);
 		}
 	}
+
+    public void SetPosition(string id, float x, float y){
+        
+        if (players.Count < maxPlayers && !(players.ContainsKey(id))){
+            Debug.Log("Player added!!");
+            AddPlayer(id, x);
+        }
+
+
+        // Converting X position
+        float old_rangeX = 1 - 0; // old_max - old_min;
+        float new_rangeX = rightBrickLimit - leftBrickLimit; // new_max - new_min;
+        float convertedPosX = leftBrickLimit + (x - 0) * new_rangeX / old_rangeX; // new_min + (x - old_min) * new_range / old_range;
+
+        // Converting Y position
+        float old_rangeY = 1 - 0; // old_max - old_min;
+        float new_rangeY = 25 - 0; // new_max - new_min;
+        float convertedPosY = 0 + (y - 0) * new_rangeY / old_rangeY; //new_min + (x - old_min) * new_range / old_range;
+
+        if (convertedPosY < playerY) // y axis is inverted in the game floor
+            playerY = convertedPosY;
+        if (convertedPosX > playerX)
+            playerX = convertedPosX;
+
+                 
+        if (players.ContainsKey(id))
+        {
+            players[id].GetComponent<PlayerMovement>().SetPos(convertedPosX);
+            //Debug.Log("Converted position X: " + convertedPosX + " Y: " + convertedPosY);
+        }
+    }
+
+    public void RemovePlayer(string deadPlayer)
+    {
+        Destroy(players[deadPlayer]);
+        Destroy(players[deadPlayer].GetComponent<PlayerMovement>());
+        players.Remove(deadPlayer);
+    }
 
 	public void GameReset(){
 		score = 0;
 		lives = initLives;
 		bricksDestroyed = 0;
 		BallReset();
-		PlayerReset();
 		BricksReset();
+        PlayerReset();
 	}
 }

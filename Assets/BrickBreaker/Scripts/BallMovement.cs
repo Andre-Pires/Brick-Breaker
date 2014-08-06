@@ -3,8 +3,11 @@ using System.Collections;
 
 public class BallMovement : MonoBehaviour {
 
-	public float speed = 6f;
-	public bool canMove = false;
+	public float speed = 7f;
+	private bool canMove = false;
+	private bool explosionsActive = false;
+	public Object[] particleSystems = Resources.LoadAll("Explosions", typeof(GameObject));
+
 
 	// Use this for initialization
 	void Start () {
@@ -37,7 +40,7 @@ public class BallMovement : MonoBehaviour {
 
 		
 	void OnCollisionEnter (Collision collision){
-		
+
 		if (collision.gameObject.tag.Equals("Brick")){
 			
 			GameObject toDestroy = FindClosestBrick();
@@ -45,8 +48,15 @@ public class BallMovement : MonoBehaviour {
 				Destroy(toDestroy);
 				GameMaster.IncreaseScore();
 				GameMaster.DestroyBrick();
+
+				//TODO fine tuning explosions
+				if(explosionsActive){
+					foreach (GameObject ps in particleSystems) {
+						GameObject go = Instantiate (ps, toDestroy.transform.position, Quaternion.identity) as GameObject;
+							Destroy (go, 10);
+					}
+				}
 			}
-			
 		}
 
 
